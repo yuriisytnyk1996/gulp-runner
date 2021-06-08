@@ -1,23 +1,39 @@
 {
-  "name": "myproject",
+  "name": "gulp-tasks",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "browser-sync": "^2.26.14",
+    "browser-sync": "^2.26.12",
     "del": "^6.0.0",
     "gulp": "^4.0.2",
     "gulp-autoprefixer": "^7.0.1",
+    "gulp-cheerio": "^1.0.0",
     "gulp-clean-css": "^4.3.0",
     "gulp-concat": "^2.6.1",
     "gulp-imagemin": "^7.1.0",
     "gulp-newer": "^1.4.0",
+    "gulp-plumber": "^1.2.1",
+    "gulp-pug": "^4.0.1",
+    "gulp-replace": "^1.0.0",
     "gulp-sass": "^4.1.0",
-    "gulp-uglify-es": "^2.0.0"
+    "gulp-sourcemaps": "^2.6.5",
+    "gulp-svg-sprite": "^1.5.0",
+    "gulp-svgmin": "^3.0.0",
+    "gulp-uglify-es": "^2.0.0",
+    "gulp.spritesmith": "^6.12.1",
+    "merge-stream": "^2.0.0"
+  },
+  "dependencies": {
+    "@barba/core": "^2.9.7",
+    "@fortawesome/fontawesome-free": "^5.15.3",
+    "gsap": "^3.5.1",
+    "jquery": "^3.5.1"
   }
 }

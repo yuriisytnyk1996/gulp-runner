@@ -1,96 +1,206 @@
-let preprocessor = 'scss';
+const { src, dest, parallel, series, watch } = require("gulp");
+const plumber = require("gulp-plumber");
+const pug = require("gulp-pug");
+const scss = require("gulp-sass");
+const sourcemaps = require("gulp-sourcemaps");
+const autoprefixer = require("gulp-autoprefixer");
+const cleancss = require("gulp-clean-css");
+const concat = require("gulp-concat");
+const uglify = require("gulp-uglify-es").default;
+const browserSync = require("browser-sync").create();
+const imagemin = require("gulp-imagemin");
+const svgSprite = require("gulp-svg-sprite");
+const spritesmith = require("gulp.spritesmith");
+const merge = require("merge-stream");
+const svgmin = require("gulp-svgmin");
+const cheerio = require("gulp-cheerio");
+const replace = require("gulp-replace");
+const newer = require("gulp-newer");
+const del = require("del");
 
-// Визначаю константи Gulp
-const { src, dest, parallel, series, watch } = require('gulp');
-
-// Підключаю Browsersync, create() для створення нового підключення
-const browserSync = require('browser-sync').create();
-
-// Підключаю gulp-concat
-const concat = require('gulp-concat');
- 
-// Підключаю gulp-uglify-es
-const uglify = require('gulp-uglify-es').default;
-
-// Підключаю модуль gulp-sass
-const sass = require('gulp-sass');
-
-// Підключаю Autoprefixer
-const autoprefixer = require('gulp-autoprefixer');
-
-// Підключаю модуль gulp-clean-css
-const cleancss = require('gulp-clean-css');
-
-// Підключаю gulp-imagemin для роботи із зображеннями
-const imagemin = require('gulp-imagemin');
- 
-// Підключаю модуль gulp-newer
-const newer = require('gulp-newer');
- 
-// Підключаю модуль del
-const del = require('del');
-
-// Визначаю логіку роботи Browsersync
 function browsersync() {
-	browserSync.init({
-		server: { baseDir: 'app/' },
-		notify: false,
-		online: true
-	})
+  browserSync.init({
+    server: { baseDir: "src/" },
+    notify: false,
+    online: true,
+  });
 }
 
+// function html() {
+//   return src("src/pages/**/*.pug")
+//     .pipe(plumber())
+//     .pipe(
+//       pug({
+//         pretty: true,
+//       })
+//     )
+//     .pipe(dest("src/"));
+// }
+
 function scripts() {
-	return src([ // Беру вихідні файли скриптів
-		// 'node_modules/jquery/dist/jquery.min.js',
-		'app/js/main.js'
-	])
-	.pipe(concat('main.min.js')) // Конкатеную в один файл
-	.pipe(uglify()) // Стискаю JavaScript
-	.pipe(dest('app/js/')) // Вивантажую готовий файл в папку призначення
-	.pipe(browserSync.stream()) // Тригерю Browsersync для оновлення сторінки
+  return src([
+    // 'node_modules/jquery/dist/jquery.min.js',
+    // "node_modules/gsap/dist/gsap.js",
+    // "node_modules/@barba/core/dist/barba.umd.js",
+    "src/js/main.js",
+  ])
+    .pipe(concat("main.min.js"))
+    .pipe(uglify())
+    .pipe(dest("src/js/"))
+    .pipe(browserSync.stream());
 }
 
 function styles() {
-	return src('app/scss/style.scss')
-	.pipe(sass())
-	.pipe(concat('style.min.css'))
-	.pipe(autoprefixer({ overrideBrowserslist: ['last 10 versions'], grid: true })) // Створюю префікси
-	.pipe(cleancss( { level: { 1: { specialComments: 0 } }/* , format: 'beautify' */ } )) // Мініфікую стилі
-	.pipe(dest('app/css')) // Вивантажую результат в папку
-	.pipe(browserSync.stream()) // Роблю інєкцію в браузер
+  return src("src/scss/**/*.scss")
+    .pipe(plumber())
+    .pipe(sourcemaps.init())
+    .pipe(scss())
+    .pipe(concat("style.min.css"))
+    .pipe(
+      autoprefixer({ overrideBrowserslist: ["last 10 versions"], grid: true })
+    )
+    .pipe(
+      cleancss({
+        level: { 1: { specialComments: 0 } } /* , format: 'beautify' */,
+      })
+    )
+    .pipe(sourcemaps.write())
+    .pipe(dest("src/css/"))
+    .pipe(browserSync.stream());
 }
 
 function images() {
-	return src('app/images/src/**/*')
-	.pipe(newer('app/images/dest/'))
-	.pipe(imagemin())
-	.pipe(dest('app/images/dest'))
+  return src("src/assets/images/src/**/*")
+    .pipe(newer("src/assets/images/dest/"))
+    .pipe(imagemin())
+    .pipe(dest("src/assets/images/dest/"));
+}
+
+function svg() {
+  return (
+    src("src/assets/images/src/icons/*.svg")
+      .pipe(
+        svgmin({
+          js2svg: {
+            pretty: true,
+          },
+        })
+      )
+      // remove all fill, style and stroke declarations in out shapes
+      .pipe(
+        cheerio({
+          run: function ($) {
+            $("[fill]").removeAttr("fill");
+            $("[stroke]").removeAttr("stroke");
+            $("[style]").removeAttr("style");
+          },
+          parserOptions: { xmlMode: true },
+        })
+      )
+      // cheerio plugin create unnecessary string '&gt;', so replace it.
+      .pipe(replace("&gt;", ">"))
+      // build svg sprite
+      .pipe(
+        svgSprite({
+          mode: {
+            symbol: {
+              sprite: "../sprite.svg",
+              render: {
+                scss: {
+                  dest: "../_sprite.scss",
+                },
+              },
+            },
+          },
+        })
+      )
+      .pipe(dest("src/assets/images/dest/sprite/"))
+  );
+}
+
+function generateSprite() {
+  const spriteData = src("src/assets/sprite/*.*").pipe(
+    spritesmith({
+      imgName: "sprite.png",
+      cssName: "_sprite.scss",
+      imgPath: "../images/dest/sprite.png",
+      padding: 5,
+    })
+  );
+
+  var imgStream = spriteData.img.pipe(dest("src/assets/images/dest"));
+
+  // Pipe CSS stream through CSS optimizer and onto disk
+  var cssStream = spriteData.css.pipe(dest("src/scss/mixins"));
+
+  // Return a merged stream to handle both `end` events
+  return merge(imgStream, cssStream);
 }
 
 function cleanimg() {
-	return del('app/images/dest/**/*', { force: true }) // Видаляю весь вміст папки
+  return del("src/assets/images/dest/**/*", { force: true });
+}
+
+function cleandist() {
+  return del("dist/**/*", { force: true });
+}
+
+function buildcopy() {
+  const allStreams = [
+    src(["src/**/*.html"]).pipe(dest("dist")),
+
+    src(["src/css/**/*.min.css"])
+      .pipe(
+        cleancss({
+          level: { 1: { specialComments: 0 } } /* , format: 'beautify' */,
+        })
+      )
+      .pipe(dest("dist/css")),
+
+    src(["src/js/**/*.min.js"]).pipe(dest("dist/js")),
+
+    src(["src/assets/images/dest/*.*"]).pipe(dest("dist/assets/images/dest")),
+
+    src(["src/assets/fonts/**/*"]).pipe(dest("dist/assets/fonts")),
+  ];
+
+  return merge.apply(this, allStreams);
 }
 
 function startwatch() {
-	watch(['app/**/*.js', '!app/**/*.min.js'], scripts);
-	watch('app/**/' + preprocessor + '/**/*', styles);
-	watch('app/images/src/**/*', images);
+  watch(["src/**/*.js", "!src/**/*.min.js"], scripts);
+
+  watch("src/scss/**/*.scss", styles);
+
+  watch("src/*.html").on("change", browserSync.reload);
+
+  watch("src/assets/sprite/*.*", generateSprite);
+
+  watch("src/assets/images/src/**/*", images);
 }
 
-// Експортую функцію browsersync(), як таск browsersync. Значення після знака = це наявна функція
 exports.browsersync = browsersync;
 
-// Експортую функцію scripts() в таск scripts
+// exports.html = html;
+
 exports.scripts = scripts;
 
-// Експортую функцію styles() в таск styles
 exports.styles = styles;
 
-// Експорт функції images() в таск images
 exports.images = images;
 
-// Експорт функції cleanimg() как таск cleanimg
-exports.cleanimg = cleanimg;
+exports.svg = svg;
 
-// Експортую дефолтний таск з необхідним набором функцій
-exports.default = parallel(scripts, browsersync, startwatch);
+exports.cleanimg = cleanimg;
+exports.cleandist = cleandist;
+
+exports.build = series(
+  cleandist,
+  styles,
+  scripts,
+  generateSprite,
+  images,
+  buildcopy
+);
+
+exports.default = parallel(styles, scripts, browsersync, startwatch);
