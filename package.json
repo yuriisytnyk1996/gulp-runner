@@ -10,14 +10,18 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@babel/core": "^7.14.6",
+    "@babel/preset-env": "^7.14.5",
     "browser-sync": "^2.26.12",
     "del": "^6.0.0",
     "gulp": "^4.0.2",
     "gulp-autoprefixer": "^7.0.1",
+    "gulp-babel": "^8.0.0",
     "gulp-cheerio": "^1.0.0",
     "gulp-clean-css": "^4.3.0",
     "gulp-concat": "^2.6.1",
     "gulp-imagemin": "^7.1.0",
+    "gulp-modify-css-urls": "^2.0.0",
     "gulp-newer": "^1.4.0",
     "gulp-plumber": "^1.2.1",
     "gulp-pug": "^4.0.1",
@@ -34,6 +38,8 @@
     "@barba/core": "^2.9.7",
     "@fortawesome/fontawesome-free": "^5.15.3",
     "gsap": "^3.5.1",
-    "jquery": "^3.5.1"
+    "jquery": "^3.5.1",
+    "slick-slider": "^1.8.2",
+    "svg4everybody": "^2.1.9"
   }
 }

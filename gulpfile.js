@@ -1,4 +1,5 @@
 const { src, dest, parallel, series, watch } = require("gulp");
+const babel = require("gulp-babel");
 const plumber = require("gulp-plumber");
 const pug = require("gulp-pug");
 const scss = require("gulp-sass");
@@ -16,6 +17,7 @@ const svgmin = require("gulp-svgmin");
 const cheerio = require("gulp-cheerio");
 const replace = require("gulp-replace");
 const newer = require("gulp-newer");
+const modifyCssUrls = require("gulp-modify-css-urls");
 const del = require("del");
 
 function browsersync() {
@@ -26,46 +28,61 @@ function browsersync() {
   });
 }
 
+function modifyUrls() {
+  return src("src/css/**/*.css").pipe(
+    modifyCssUrls({
+      modify: function (url) {
+        return url.replace(
+          "../../assets/images/dest/",
+          "../assets/images/dest/"
+        );
+      },
+    })
+  );
+}
+
 // function html() {
-//   return src("src/pages/**/*.pug")
+//   return src("src/pages/*.pug")
 //     .pipe(plumber())
 //     .pipe(
 //       pug({
 //         pretty: true,
 //       })
 //     )
+//     .pipe(plumber.stop())
 //     .pipe(dest("src/"));
 // }
 
 function scripts() {
   return src([
-    // 'node_modules/jquery/dist/jquery.min.js',
-    // "node_modules/gsap/dist/gsap.js",
-    // "node_modules/@barba/core/dist/barba.umd.js",
+    "node_modules/jquery/dist/jquery.min.js",
+    "node_modules/slick-slider/slick/slick.min.js",
+    // "node_modules/svg4everybody/dist/svg4everybody.min.js",
     "src/js/main.js",
   ])
+    .pipe(sourcemaps.init())
+    .pipe(
+      babel({
+        presets: ["@babel/env"],
+      })
+    )
     .pipe(concat("main.min.js"))
     .pipe(uglify())
+    .pipe(sourcemaps.write("."))
     .pipe(dest("src/js/"))
     .pipe(browserSync.stream());
 }
 
 function styles() {
   return src("src/scss/**/*.scss")
-    .pipe(plumber())
     .pipe(sourcemaps.init())
-    .pipe(scss())
-    .pipe(concat("style.min.css"))
+    .pipe(scss().on("error", scss.logError))
     .pipe(
       autoprefixer({ overrideBrowserslist: ["last 10 versions"], grid: true })
     )
-    .pipe(
-      cleancss({
-        level: { 1: { specialComments: 0 } } /* , format: 'beautify' */,
-      })
-    )
     .pipe(sourcemaps.write())
     .pipe(dest("src/css/"))
+    .pipe(modifyUrls())
     .pipe(browserSync.stream());
 }
 
@@ -123,7 +140,7 @@ function generateSprite() {
     spritesmith({
       imgName: "sprite.png",
       cssName: "_sprite.scss",
-      imgPath: "../images/dest/sprite.png",
+      imgPath: "../assets/images/dest/sprite.png",
       padding: 5,
     })
   );
@@ -149,7 +166,8 @@ function buildcopy() {
   const allStreams = [
     src(["src/**/*.html"]).pipe(dest("dist")),
 
-    src(["src/css/**/*.min.css"])
+    src(["src/css/**/*.css"])
+      .pipe(concat("style.min.css"))
       .pipe(
         cleancss({
           level: { 1: { specialComments: 0 } } /* , format: 'beautify' */,
@@ -159,7 +177,9 @@ function buildcopy() {
 
     src(["src/js/**/*.min.js"]).pipe(dest("dist/js")),
 
-    src(["src/assets/images/dest/*.*"]).pipe(dest("dist/assets/images/dest")),
+    src(["src/assets/images/dest/*.*"], images).pipe(
+      dest("dist/assets/images/dest")
+    ),
 
     src(["src/assets/fonts/**/*"]).pipe(dest("dist/assets/fonts")),
   ];
@@ -194,13 +214,6 @@ exports.svg = svg;
 exports.cleanimg = cleanimg;
 exports.cleandist = cleandist;
 
-exports.build = series(
-  cleandist,
-  styles,
-  scripts,
-  generateSprite,
-  images,
-  buildcopy
-);
+exports.build = series(cleandist, styles, scripts, generateSprite, buildcopy);
 
 exports.default = parallel(styles, scripts, browsersync, startwatch);
